@@ -17,7 +17,7 @@ services:
   customersService:
     name: customers-service
     image: donalmun/customers-service
-    tag: latest
+    tag: a43d0d0
     port: 8081
     memory: 512Mi
 

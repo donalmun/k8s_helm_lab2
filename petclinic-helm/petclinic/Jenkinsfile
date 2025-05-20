@@ -45,17 +45,30 @@ pipeline {
                         def service = serviceNames[i].trim()
                         def tag = imageTags[i].trim()
                         
-                        echo "Updating ${service} to tag ${tag}"
+                        // Đổi tên dịch vụ từ "customers-service" thành "customersService" theo format trong values.yaml
+                        def yamlServiceKey = service.replace('-', '')
+                        if (service.contains('-')) {
+                            // Chuyển đổi dạng "customers-service" thành "customersService"
+                            def parts = service.split('-')
+                            yamlServiceKey = parts[0]
+                            for (int j = 1; j < parts.length; j++) {
+                                yamlServiceKey += parts[j].capitalize()
+                            }
+                        }
                         
+                        echo "Updating ${service} (${yamlServiceKey} in YAML) to tag ${tag}"
+                        
+                        // Cập nhật tag cho dịch vụ trong values.yaml
                         sh """
                             cd petclinic-helm/petclinic
-                            sed -i "s|image: ${DOCKER_HUB_USERNAME}/${service}:.*|image: ${DOCKER_HUB_USERNAME}/${service}:${tag}|g" values.yaml
+                            sed -i '/${yamlServiceKey}:/,/name:/s/tag: .*/tag: ${tag}/g' values.yaml
                         """
                         
-                        // Verify the change was made (without failing if not found)
+                        // Kiểm tra thay đổi
                         sh """
                             cd petclinic-helm/petclinic
-                            cat values.yaml | grep "${service}" || echo "No match found for ${service}"
+                            echo "Checking updated values for ${yamlServiceKey}:"
+                            grep -A 5 "${yamlServiceKey}:" values.yaml || echo "Service not found in values.yaml"
                         """
                     }
                 }
@@ -74,7 +87,7 @@ pipeline {
                             sh '''
                                 cd petclinic-helm/petclinic
                                 git add values.yaml
-                                git commit -m "Update services: ${SERVICE_NAMES}"
+                                git commit -m "Update services: ${SERVICE_NAMES} with tags: ${IMAGE_TAGS}"
                                 git push origin main
                             '''
                         }

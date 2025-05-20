@@ -36,6 +36,7 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        cd petclinic-helm/petclinic
                         sed -i "s|image: ${DOCKER_HUB_USERNAME}/${SERVICE_NAME}:.*|image: ${DOCKER_HUB_USERNAME}/${SERVICE_NAME}:${IMAGE_TAG}|g" values.yaml
                         cat values.yaml | grep ${SERVICE_NAME}
                     '''
@@ -46,14 +47,18 @@ pipeline {
         stage('Commit and Push') {
             steps {
                 script {
-                    def hasChanges = sh(script: "git status --porcelain", returnStdout: true).trim()
+                    sh 'cd petclinic-helm/petclinic && git status --porcelain > /tmp/changes.txt'
+                    def hasChanges = readFile('/tmp/changes.txt').trim()
                     if (hasChanges) {
                         withCredentials([usernamePassword(credentialsId: 'github_CI_k8s', 
                                                         usernameVariable: 'GIT_USERNAME', 
                                                         passwordVariable: 'GIT_PASSWORD')]) {
-                            sh 'git add values.yaml'
-                            sh 'git commit -m "Update ${SERVICE_NAME} image to ${IMAGE_TAG}"'
-                            sh 'git push origin main'
+                            sh '''
+                                cd petclinic-helm/petclinic
+                                git add values.yaml
+                                git commit -m "Update ${SERVICE_NAME} image to ${IMAGE_TAG}"
+                                git push origin main
+                            '''
                         }
                         echo "Pushed changes to repo"
                     } else {

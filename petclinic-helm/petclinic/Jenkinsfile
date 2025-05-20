@@ -58,10 +58,10 @@ pipeline {
                         
                         echo "Updating ${service} (${yamlServiceKey} in YAML) to tag ${tag}"
                         
-                        // Cập nhật tag cho dịch vụ trong values.yaml
+                        // Cập nhật tag cho dịch vụ trong values.yaml - SỬA LỆNH SED Ở ĐÂY
                         sh """
                             cd petclinic-helm/petclinic
-                            sed -i '/${yamlServiceKey}:/,/name:/s/tag: .*/tag: ${tag}/g' values.yaml
+                            sed -i '/  ${yamlServiceKey}:/,+5 s/tag: .*/tag: ${tag}/g' values.yaml
                         """
                         
                         // Kiểm tra thay đổi

@@ -1,0 +1,82 @@
+pipeline {
+    agent {
+        node {
+            label 'k8s_master'
+        }
+    }
+    
+    parameters {
+        string(name: 'SERVICE_NAME', description: 'Service name to update')
+        string(name: 'IMAGE_TAG', description: 'New image tag to deploy')
+    }
+    
+    environment {
+        DOCKER_HUB_USERNAME = "donalmun"
+        GITHUB_CREDS = credentials('github_CI_k8s')
+    }
+    
+    stages {
+        stage('Prepare Git') {
+            steps {
+                // Đảm bảo workspace sạch và cập nhật
+                sh "git checkout main"
+                sh "git config user.email 'jenkins@example.com'"
+                sh "git config user.name 'Jenkins CI'"
+                
+                // Pull để cập nhật từ remote
+                withCredentials([usernamePassword(credentialsId: 'github_CI_k8s', 
+                                                  usernameVariable: 'GIT_USERNAME', 
+                                                  passwordVariable: 'GIT_PASSWORD')]) {
+                    sh """
+                        git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/donalmun/petclinic-helm.git
+                        git pull origin main
+                    """
+                }
+            }
+        }
+        
+        stage('Update Image Tag') {
+            steps {
+                script {
+                    // Cập nhật tag image trong values.yaml
+                    sh """
+                        sed -i 's|image: ${DOCKER_HUB_USERNAME}/${params.SERVICE_NAME}:.*|image: ${DOCKER_HUB_USERNAME}/${params.SERVICE_NAME}:${params.IMAGE_TAG}|g' values.yaml
+                        cat values.yaml | grep ${params.SERVICE_NAME}
+                    """
+                }
+            }
+        }
+        
+        stage('Commit and Push') {
+            steps {
+                script {
+                    // Kiểm tra xem có thay đổi không
+                    def hasChanges = sh(script: "git status --porcelain", returnStdout: true).trim()
+                    if (hasChanges) {
+                        withCredentials([usernamePassword(credentialsId: 'github_CI_k8s', 
+                                                        usernameVariable: 'GIT_USERNAME', 
+                                                        passwordVariable: 'GIT_PASSWORD')]) {
+                            sh """
+                                git add values.yaml
+                                git commit -m "Update ${params.SERVICE_NAME} image to ${params.IMAGE_TAG}"
+                                git push origin main
+                            """
+                        }
+                        echo "Pushed changes to repo"
+                    } else {
+                        echo "No changes detected, skipping commit"
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "Successfully updated Helm chart for ${params.SERVICE_NAME} with image tag ${params.IMAGE_TAG}"
+        }
+        failure {
+            echo "Failed to update Helm chart for ${params.SERVICE_NAME}"
+        }
+    }
+}

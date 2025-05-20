@@ -28,7 +28,7 @@ pipeline {
                                                   usernameVariable: 'GIT_USERNAME', 
                                                   passwordVariable: 'GIT_PASSWORD')]) {
                     sh """
-                        git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/donalmun/petclinic-helm.git
+                        git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@https://github.com/donalmun/k8s_helm_lab2
                         git pull origin main
                     """
                 }

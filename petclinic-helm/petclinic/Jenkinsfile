@@ -18,19 +18,16 @@ pipeline {
     stages {
         stage('Prepare Git') {
             steps {
-                // Đảm bảo workspace sạch và cập nhật
                 sh "git checkout main"
                 sh "git config user.email 'jenkins@example.com'"
                 sh "git config user.name 'Jenkins CI'"
                 
-                // Pull để cập nhật từ remote
                 withCredentials([usernamePassword(credentialsId: 'github_CI_k8s', 
                                                   usernameVariable: 'GIT_USERNAME', 
                                                   passwordVariable: 'GIT_PASSWORD')]) {
-                    sh """
-                        git remote set-url origin https://${GIT_USERNAME}:${GIT_PASSWORD}@https://github.com/donalmun/k8s_helm_lab2
-                        git pull origin main
-                    """
+                    // Fix the URL format - removed the second "https://" 
+                    sh 'git remote set-url origin https://$GIT_USERNAME:$GIT_PASSWORD@github.com/donalmun/k8s_helm_lab2'
+                    sh 'git pull origin main'
                 }
             }
         }
@@ -38,11 +35,10 @@ pipeline {
         stage('Update Image Tag') {
             steps {
                 script {
-                    // Cập nhật tag image trong values.yaml
-                    sh """
-                        sed -i 's|image: ${DOCKER_HUB_USERNAME}/${params.SERVICE_NAME}:.*|image: ${DOCKER_HUB_USERNAME}/${params.SERVICE_NAME}:${params.IMAGE_TAG}|g' values.yaml
-                        cat values.yaml | grep ${params.SERVICE_NAME}
-                    """
+                    sh '''
+                        sed -i "s|image: ${DOCKER_HUB_USERNAME}/${SERVICE_NAME}:.*|image: ${DOCKER_HUB_USERNAME}/${SERVICE_NAME}:${IMAGE_TAG}|g" values.yaml
+                        cat values.yaml | grep ${SERVICE_NAME}
+                    '''
                 }
             }
         }
@@ -50,17 +46,14 @@ pipeline {
         stage('Commit and Push') {
             steps {
                 script {
-                    // Kiểm tra xem có thay đổi không
                     def hasChanges = sh(script: "git status --porcelain", returnStdout: true).trim()
                     if (hasChanges) {
                         withCredentials([usernamePassword(credentialsId: 'github_CI_k8s', 
                                                         usernameVariable: 'GIT_USERNAME', 
                                                         passwordVariable: 'GIT_PASSWORD')]) {
-                            sh """
-                                git add values.yaml
-                                git commit -m "Update ${params.SERVICE_NAME} image to ${params.IMAGE_TAG}"
-                                git push origin main
-                            """
+                            sh 'git add values.yaml'
+                            sh 'git commit -m "Update ${SERVICE_NAME} image to ${IMAGE_TAG}"'
+                            sh 'git push origin main'
                         }
                         echo "Pushed changes to repo"
                     } else {

@@ -3,7 +3,7 @@ services:
   configServer:
     name: config-server
     image: donalmun/config-server
-    tag: 1ec051d
+    tag: bf11b33
     port: 8888
     memory: 512Mi
 

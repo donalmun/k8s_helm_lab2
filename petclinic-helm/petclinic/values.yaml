@@ -45,6 +45,6 @@ services:
   adminServer:
     name: admin-server
     image: donalmun/admin-server
-    tag: 1ec051d
+    tag: 234ea6c
     port: 9090
     memory: 512Mi

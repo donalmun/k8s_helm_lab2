@@ -4,24 +4,24 @@ pipeline {
             label 'k8s_master'
         }
     }
-    
+
     parameters {
         string(name: 'SERVICE_NAMES', description: 'Comma-separated list of service names to update')
         string(name: 'IMAGE_TAGS', description: 'Comma-separated list of image tags to deploy')
+        string(name: 'VALUES_FILE', description: 'The values file to update (e.g., values-staging.yaml or values-dev.yaml)')
     }
-    
+
     environment {
         DOCKER_HUB_USERNAME = "donalmun"
         GITHUB_CREDS = credentials('github_CI_k8s')
     }
-    
+
     stages {
         stage('Prepare Git') {
             steps {
                 sh "git checkout main"
                 sh "git config user.email 'jenkins@example.com'"
                 sh "git config user.name 'Jenkins CI'"
-                
                 withCredentials([usernamePassword(credentialsId: 'github_CI_k8s', 
                                                   usernameVariable: 'GIT_USERNAME', 
                                                   passwordVariable: 'GIT_PASSWORD')]) {
@@ -30,41 +30,28 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Update Image Tags') {
             steps {
                 script {
                     def serviceNames = params.SERVICE_NAMES.split(',')
                     def imageTags = params.IMAGE_TAGS.split(',')
-                    
+                    def valuesFile = params.VALUES_FILE ?: "values-dev.yaml"
                     if (serviceNames.size() != imageTags.size()) {
                         error "Mismatch between number of services and tags"
                     }
-                    
-                    // Kiểm tra xem build này có được kích hoạt bởi tag hay không
-                    def isTag = env.TAG_NAME != null && env.TAG_NAME != ''
-                    def valuesFile = isTag ? "values-staging.yaml" : "values-dev.yaml"
-                    
-                    echo "Using ${valuesFile} for updates (isTag: ${isTag})"
-                    
                     for (int i = 0; i < serviceNames.size(); i++) {
                         def service = serviceNames[i].trim()
                         def tag = imageTags[i].trim()
-                        
-                        // Đổi tên dịch vụ từ "customers-service" thành "customersService" theo format trong values.yaml
                         def yamlServiceKey = service.replace('-', '')
                         if (service.contains('-')) {
-                            // Chuyển đổi dạng "customers-service" thành "customersService"
                             def parts = service.split('-')
                             yamlServiceKey = parts[0]
                             for (int j = 1; j < parts.length; j++) {
                                 yamlServiceKey += parts[j].capitalize()
                             }
                         }
-                        
                         echo "Updating ${service} (${yamlServiceKey} in YAML) to tag ${tag} in ${valuesFile}"
-                        
-                        // Kiểm tra xem file values có tồn tại không, nếu không thì tạo mới từ values.yaml
                         sh """
                             cd petclinic-helm/petclinic
                             if [ ! -f "${valuesFile}" ]; then
@@ -72,14 +59,10 @@ pipeline {
                                 cp values.yaml ${valuesFile}
                             fi
                         """
-                        
-                        // Cập nhật tag cho dịch vụ trong file values tương ứng
                         sh """
                             cd petclinic-helm/petclinic
                             sed -i '/  ${yamlServiceKey}:/,+5 s/tag: .*/tag: ${tag}/g' ${valuesFile}
                         """
-                        
-                        // Kiểm tra thay đổi
                         sh """
                             cd petclinic-helm/petclinic
                             echo "Checking updated values for ${yamlServiceKey} in ${valuesFile}:"
@@ -89,13 +72,11 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Commit and Push') {
             steps {
                 script {
-                    def isTag = env.TAG_NAME != null && env.TAG_NAME != ''
-                    def valuesFile = isTag ? "values-staging.yaml" : "values-dev.yaml"
-                    
+                    def valuesFile = params.VALUES_FILE ?: "values-dev.yaml"
                     sh "cd petclinic-helm/petclinic && git status --porcelain > /tmp/changes.txt"
                     def hasChanges = readFile('/tmp/changes.txt').trim()
                     if (hasChanges) {
@@ -117,7 +98,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         success {
             echo "Successfully updated Helm charts for services: ${params.SERVICE_NAMES}"

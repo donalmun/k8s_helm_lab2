@@ -31,7 +31,7 @@ services:
   vetsService:
     name: vets-service
     image: donalmun/vets-service
-    tag: 47cb426
+    tag: b194a99
     port: 8083
     memory: 512Mi
 

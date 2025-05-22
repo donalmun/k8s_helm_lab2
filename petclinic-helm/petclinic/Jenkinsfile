@@ -41,6 +41,12 @@ pipeline {
                         error "Mismatch between number of services and tags"
                     }
                     
+                    // Kiểm tra xem build này có được kích hoạt bởi tag hay không
+                    def isTag = env.TAG_NAME != null && env.TAG_NAME != ''
+                    def valuesFile = isTag ? "values-staging.yaml" : "values-dev.yaml"
+                    
+                    echo "Using ${valuesFile} for updates (isTag: ${isTag})"
+                    
                     for (int i = 0; i < serviceNames.size(); i++) {
                         def service = serviceNames[i].trim()
                         def tag = imageTags[i].trim()
@@ -56,19 +62,28 @@ pipeline {
                             }
                         }
                         
-                        echo "Updating ${service} (${yamlServiceKey} in YAML) to tag ${tag}"
+                        echo "Updating ${service} (${yamlServiceKey} in YAML) to tag ${tag} in ${valuesFile}"
                         
-                        // Cập nhật tag cho dịch vụ trong values.yaml - SỬA LỆNH SED Ở ĐÂY
+                        // Kiểm tra xem file values có tồn tại không, nếu không thì tạo mới từ values.yaml
                         sh """
                             cd petclinic-helm/petclinic
-                            sed -i '/  ${yamlServiceKey}:/,+5 s/tag: .*/tag: ${tag}/g' values.yaml
+                            if [ ! -f "${valuesFile}" ]; then
+                                echo "Creating ${valuesFile} from values.yaml"
+                                cp values.yaml ${valuesFile}
+                            fi
+                        """
+                        
+                        // Cập nhật tag cho dịch vụ trong file values tương ứng
+                        sh """
+                            cd petclinic-helm/petclinic
+                            sed -i '/  ${yamlServiceKey}:/,+5 s/tag: .*/tag: ${tag}/g' ${valuesFile}
                         """
                         
                         // Kiểm tra thay đổi
                         sh """
                             cd petclinic-helm/petclinic
-                            echo "Checking updated values for ${yamlServiceKey}:"
-                            grep -A 5 "${yamlServiceKey}:" values.yaml || echo "Service not found in values.yaml"
+                            echo "Checking updated values for ${yamlServiceKey} in ${valuesFile}:"
+                            grep -A 5 "${yamlServiceKey}:" ${valuesFile} || echo "Service not found in ${valuesFile}"
                         """
                     }
                 }
@@ -78,18 +93,21 @@ pipeline {
         stage('Commit and Push') {
             steps {
                 script {
-                    sh 'cd petclinic-helm/petclinic && git status --porcelain > /tmp/changes.txt'
+                    def isTag = env.TAG_NAME != null && env.TAG_NAME != ''
+                    def valuesFile = isTag ? "values-staging.yaml" : "values-dev.yaml"
+                    
+                    sh "cd petclinic-helm/petclinic && git status --porcelain > /tmp/changes.txt"
                     def hasChanges = readFile('/tmp/changes.txt').trim()
                     if (hasChanges) {
                         withCredentials([usernamePassword(credentialsId: 'github_CI_k8s', 
                                                         usernameVariable: 'GIT_USERNAME', 
                                                         passwordVariable: 'GIT_PASSWORD')]) {
-                            sh '''
+                            sh """
                                 cd petclinic-helm/petclinic
-                                git add values.yaml
-                                git commit -m "Update services: ${SERVICE_NAMES} with tags: ${IMAGE_TAGS}"
+                                git add ${valuesFile}
+                                git commit -m "Update services: ${params.SERVICE_NAMES} with tags: ${params.IMAGE_TAGS} in ${valuesFile}"
                                 git push origin main
-                            '''
+                            """
                         }
                         echo "Pushed changes to repo"
                     } else {

@@ -1,3 +1,4 @@
+namespace: dev
 services:
   configServer:
     name: config-server

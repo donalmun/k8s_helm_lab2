@@ -1,3 +1,4 @@
+namespace: staging
 services:
   configServer:
     name: config-server

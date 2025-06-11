@@ -48,3 +48,17 @@ services:
     tag: latest
     port: 9090
     memory: 512Mi
+
+  grafanaServer:
+    name: grafana-server
+    image: donalmun/grafana-server
+    tag: latest
+    port: 3030
+    memory: 512Mi
+
+  prometheusServer:
+    name: prometheus-server
+    image: donalmun/prometheus-server
+    tag: latest
+    port: 9091
+    memory: 512Mi

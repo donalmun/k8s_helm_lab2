@@ -24,7 +24,7 @@ services:
   visitsService:
     name: visits-service
     image: donalmun/visits-service
-    tag: 0079355
+    tag: cee49d2
     port: 8082
     memory: 512Mi
 

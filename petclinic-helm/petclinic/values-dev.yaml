@@ -3,14 +3,14 @@ services:
   configServer:
     name: config-server
     image: donalmun/config-server
-    tag: d956a77
+    tag: 0079355
     port: 8888
     memory: 512Mi
 
   discoveryServer:
     name: discovery-server
     image: donalmun/discovery-server
-    tag: d956a77
+    tag: 0079355
     port: 8761
     memory: 512Mi
 
@@ -24,27 +24,27 @@ services:
   visitsService:
     name: visits-service
     image: donalmun/visits-service
-    tag: d956a77
+    tag: 0079355
     port: 8082
     memory: 512Mi
 
   vetsService:
     name: vets-service
     image: donalmun/vets-service
-    tag: d956a77
+    tag: 0079355
     port: 8083
     memory: 512Mi
 
   apiGateway:
     name: api-gateway
     image: donalmun/api-gateway
-    tag: d956a77
+    tag: 0079355
     port: 8080
     memory: 512Mi
 
   adminServer:
     name: admin-server
     image: donalmun/admin-server
-    tag: d956a77
+    tag: 0079355
     port: 9090
     memory: 512Mi
